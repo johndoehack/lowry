@@ -1,0 +1,2 @@
+require './lowry'
+run Lowry

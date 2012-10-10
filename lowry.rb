@@ -22,18 +22,19 @@ def finish_whois(host, w)
   headers "Content-Type" => "application/json"
   body JSON.dump(resp)
 end
+class Lowry < Sinatra::Base
+  get '/whois/:host' do
+    host = "#{params[:host]}"
+    begin
+      w = Whois.whois(host)
+      finish_whois(host, w)
+    rescue Whois::ServerNotFound => e
+      status 503
+    end
 
-get '/whois/:host' do
-  host = "#{params[:host]}"
-  begin
-    w = Whois.whois(host)
-    finish_whois(host, w)
-  rescue Whois::ServerNotFound => e
-    status 503
   end
-  
-end
 
-get '/*' do
-  halt 404
+  get '/*' do
+    halt 404
+  end
 end
