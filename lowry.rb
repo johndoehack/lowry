@@ -1,6 +1,12 @@
 require 'sinatra'
 require 'whois'
 require 'json'
+require 'nmap/program'
+require 'nmap/xml'
+
+def command?(command)
+  system("which #{command} > /dev/null 2>&1")
+end
 
 def finish_whois(host, w)
   resp = {
@@ -23,8 +29,8 @@ def finish_whois(host, w)
   body JSON.dump(resp)
 end
 class Lowry < Sinatra::Base
-  get '/whois/:host' do
-    host = "#{params[:host]}"
+  get '/:host/whois' do
+    host = params[:host]
     begin
       w = Whois.whois(host)
       finish_whois(host, w)
@@ -33,7 +39,31 @@ class Lowry < Sinatra::Base
     end
 
   end
-
+  get '/:host/nmap' do
+    host = params[:host]
+    if ! command?("nmap")
+      status 503
+    else
+      Nmap::Program.scan do |nmap|
+        nmap.xml = 'scan.xml'
+        nmap.ports = [22,23,80,443]
+        nmap.targets = host
+      end
+      resp = {
+        "hostname"=>host
+      }
+      xml = Nmap::XML.new('scan.xml')
+      nhost = xml.hosts[0]
+      puts xml.hosts.length
+      resp["ip"] = nhost.ip
+      nhost.each_port do |port|
+        resp["#{port.number}"] = port.state
+      end
+      status 200
+      headers "Content-Type" => "application/json"
+      body JSON.dump(resp)
+    end
+  end
   get '/*' do
     halt 404
   end
